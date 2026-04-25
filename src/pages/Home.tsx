@@ -185,7 +185,7 @@ export default function Home() {
       />
 
       <footer className="border-t border-border/60 py-8 text-center text-xs text-ink-soft">
-        Inkframe — projects live in your browser. Never sent to a server.
+        Inkframe — your projects sync to the cloud, frame data cached locally.
       </footer>
     </div>
   );
