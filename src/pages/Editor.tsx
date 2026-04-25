@@ -11,13 +11,27 @@ export default function Editor() {
   const [project, setProject] = useState<Project | null>(null);
   const [frames, setFrames] = useState<Frame[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || id === ":id") {
+      setLoading(false);
+      setNotFound(true);
+      return;
+    }
     (async () => {
-      const p = await getProject(id);
-      if (p) setProject(p);
-      setFrames(await listFrames(id));
+      try {
+        const p = await getProject(id);
+        if (p) {
+          setProject(p);
+          setFrames(await listFrames(id));
+        } else {
+          setNotFound(true);
+        }
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [id]);
 
