@@ -2,21 +2,39 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { nanoid } from "nanoid";
 import { listProjects, saveProject, deleteProject } from "@/lib/db";
+import { cloudListProjects, cloudUpsertProject, cloudDeleteProject } from "@/lib/cloudSync";
+import { useAuth } from "@/hooks/useAuth";
 import { defaultBlueprint, type Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/Logo";
 import { ImportDialog } from "@/components/ImportDialog";
 import { formatRelative } from "@/lib/utils";
-import { Plus, Trash2, Film, Pencil, Clapperboard } from "lucide-react";
+import { Plus, Trash2, Film, Pencil, Clapperboard, LogOut, Cloud } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [importOpen, setImportOpen] = useState(false);
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
-  const refresh = async () => setProjects(await listProjects());
+  const refresh = async () => {
+    // Merge cloud + local projects (cloud takes precedence by id)
+    try {
+      const [local, cloud] = await Promise.all([listProjects(), cloudListProjects()]);
+      const map = new Map<string, Project>();
+      local.forEach((p) => map.set(p.id, p));
+      cloud.forEach((p) => map.set(p.id, p));
+      const merged = Array.from(map.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+      setProjects(merged);
+      // Mirror cloud projects back to local cache for offline editing
+      for (const p of cloud) await saveProject(p);
+    } catch (err) {
+      console.error("Sync failed", err);
+      setProjects(await listProjects());
+    }
+  };
   useEffect(() => {
     refresh();
   }, []);
@@ -35,14 +53,17 @@ export default function Home() {
       frameCount: 0,
     };
     await saveProject(p);
+    cloudUpsertProject(p).catch((e) => console.error("Cloud save failed", e));
     navigate(`/editor/${p.id}`);
   };
 
   const remove = async (id: string) => {
     await deleteProject(id);
+    cloudDeleteProject(id).catch(() => {});
     toast.success("Project deleted");
     refresh();
   };
+
 
   return (
     <div className="min-h-screen paper-plain">
@@ -51,11 +72,19 @@ export default function Home() {
         <div className="container flex h-16 items-center justify-between">
           <Logo />
           <div className="flex items-center gap-2">
+            {user && (
+              <span className="hidden sm:flex items-center gap-1.5 text-xs text-ink-soft mr-2">
+                <Cloud className="size-3.5" /> {user.email}
+              </span>
+            )}
             <Button variant="outline" onClick={createBlank}>
               <Plus className="size-4" /> Blank project
             </Button>
             <Button onClick={() => setImportOpen(true)} className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Film className="size-4" /> Import video
+            </Button>
+            <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
+              <LogOut className="size-4" />
             </Button>
           </div>
         </div>
@@ -156,7 +185,7 @@ export default function Home() {
       />
 
       <footer className="border-t border-border/60 py-8 text-center text-xs text-ink-soft">
-        Inkframe — projects live in your browser. Never sent to a server.
+        Inkframe — your projects sync to the cloud, frame data cached locally.
       </footer>
     </div>
   );
