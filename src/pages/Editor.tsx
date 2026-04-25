@@ -44,10 +44,28 @@ export default function Editor() {
     };
   }, [activeUrl]);
 
-  if (!project) {
+  if (loading) {
     return (
       <div className="min-h-screen paper-plain flex items-center justify-center">
         <p className="text-ink-soft">Loading project…</p>
+      </div>
+    );
+  }
+
+  if (notFound || !project) {
+    return (
+      <div className="min-h-screen paper-plain flex items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <Construction className="size-8 mx-auto text-ink-soft mb-3" />
+          <h2 className="font-display text-2xl mb-2">Project not found</h2>
+          <p className="text-ink-soft mb-4">
+            This editor URL doesn't point to a real project. Head back to the home page and create
+            or open one to get started.
+          </p>
+          <Button asChild>
+            <Link to="/"><ArrowLeft className="size-4 mr-2" /> Back to projects</Link>
+          </Button>
+        </div>
       </div>
     );
   }
