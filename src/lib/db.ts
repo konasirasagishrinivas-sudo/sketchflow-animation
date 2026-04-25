@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { Frame, Project } from "./types";
+import { cloudUpsertProject, cloudDeleteProject } from "./cloudSync";
 
 class InkframeDB extends Dexie {
   projects!: Table<Project, string>;
@@ -27,6 +28,8 @@ export async function getProject(id: string): Promise<Project | undefined> {
 export async function saveProject(p: Project): Promise<void> {
   p.updatedAt = Date.now();
   await db.projects.put(p);
+  // Mirror to cloud (fire and forget)
+  cloudUpsertProject(p).catch((e) => console.warn("Cloud sync failed", e));
 }
 
 export async function deleteProject(id: string): Promise<void> {
@@ -34,6 +37,7 @@ export async function deleteProject(id: string): Promise<void> {
     await db.frames.where("projectId").equals(id).delete();
     await db.projects.delete(id);
   });
+  cloudDeleteProject(id).catch((e) => console.warn("Cloud delete failed", e));
 }
 
 export async function listFrames(projectId: string): Promise<Frame[]> {
