@@ -72,11 +72,19 @@ export default function Home() {
         <div className="container flex h-16 items-center justify-between">
           <Logo />
           <div className="flex items-center gap-2">
+            {user && (
+              <span className="hidden sm:flex items-center gap-1.5 text-xs text-ink-soft mr-2">
+                <Cloud className="size-3.5" /> {user.email}
+              </span>
+            )}
             <Button variant="outline" onClick={createBlank}>
               <Plus className="size-4" /> Blank project
             </Button>
             <Button onClick={() => setImportOpen(true)} className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Film className="size-4" /> Import video
+            </Button>
+            <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
+              <LogOut className="size-4" />
             </Button>
           </div>
         </div>
