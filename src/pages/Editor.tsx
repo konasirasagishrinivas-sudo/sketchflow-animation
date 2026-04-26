@@ -18,6 +18,7 @@ import { DrawingCanvas, type Tool } from "@/components/editor/DrawingCanvas";
 import { Timeline } from "@/components/editor/Timeline";
 import { AiDirection } from "@/components/editor/AiDirection";
 import { MotionBlueprint } from "@/components/editor/MotionBlueprint";
+import { AnimationPlayer } from "@/components/editor/AnimationPlayer";
 import { ExportDialog } from "@/components/editor/ExportDialog";
 import { toast } from "sonner";
 
@@ -40,7 +41,7 @@ export default function Editor() {
   const playRef = useRef<number | null>(null);
 
   // Right panel
-  const [rightTab, setRightTab] = useState<"ai" | "blueprint">("ai");
+  const [rightTab, setRightTab] = useState<"ai" | "blueprint" | "animation">("ai");
   const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
@@ -309,12 +310,23 @@ export default function Editor() {
           {/* Right side panel */}
           <aside className="border-l border-border/60 bg-paper-shade/30 min-h-0 flex flex-col">
             <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as any)} className="flex-1 flex flex-col min-h-0">
-              <TabsList className="grid grid-cols-2 m-2">
+              <TabsList className="grid grid-cols-3 m-2">
                 <TabsTrigger value="ai"><Sparkles className="size-3 mr-1" /> AI</TabsTrigger>
+                <TabsTrigger value="animation">Play</TabsTrigger>
                 <TabsTrigger value="blueprint"><Map className="size-3 mr-1" /> Blueprint</TabsTrigger>
               </TabsList>
               <TabsContent value="ai" className="flex-1 overflow-auto px-4 pb-4 mt-0">
                 <AiDirection project={project} onAddImageFrame={addImageFrame} />
+              </TabsContent>
+              <TabsContent value="animation" className="flex-1 overflow-auto px-4 pb-4 mt-0">
+                <AnimationPlayer
+                  frames={frames}
+                  fps={project.fps}
+                  width={project.width}
+                  height={project.height}
+                  currentIndex={activeIdx}
+                  onFrameChange={setActiveIdx}
+                />
               </TabsContent>
               <TabsContent value="blueprint" className="flex-1 min-h-0 mt-0">
                 <MotionBlueprint

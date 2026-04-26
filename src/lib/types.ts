@@ -68,6 +68,9 @@ export interface Project {
   blueprint: MotionBlueprint;
   /** Optional reference character image (data URL) for AI keyframe consistency. */
   characterRefDataUrl?: string;
+  /** Animation interpolation settings */
+  animationInBetweenFrames?: number;
+  animationEasing?: "linear" | "ease-in" | "ease-out" | "ease-in-out";
   createdAt: number;
   updatedAt: number;
   thumbDataUrl?: string;
