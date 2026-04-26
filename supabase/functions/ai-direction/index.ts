@@ -1,5 +1,5 @@
-// Lovable AI gateway proxy for storyboard + keyframe sketches.
-// Two modes: "storyboard" (text JSON) and "keyframe" (image generation).
+// OpenAI-powered storyboard + keyframe generation.
+// Modes: "storyboard" (chat completions w/ tool calling) and "keyframe" (image generation).
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,7 +12,7 @@ interface Body {
   prompt: string;
   count?: number;
   style?: string;
-  referenceDataUrl?: string; // for keyframe consistency
+  referenceDataUrl?: string;
 }
 
 Deno.serve(async (req) => {
@@ -24,20 +24,20 @@ Deno.serve(async (req) => {
       return json({ error: "prompt and mode are required" }, 400);
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) {
-      console.warn("LOVABLE_API_KEY not configured, returning mock data");
-      return handleMockMode(body);
+      return json({ error: "OPENAI_API_KEY is not configured" }, 500);
     }
 
     if (body.mode === "storyboard") {
       const count = Math.max(2, Math.min(12, body.count ?? 6));
       const sys = `You are an animation director. Break a short scene description into ${count} concise storyboard beats. Each beat: one camera/action sentence (<= 18 words). Return JSON via the tool only.`;
-      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+
+      const resp = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "gpt-4o-mini",
           messages: [
             { role: "system", content: sys },
             { role: "user", content: body.prompt },
@@ -79,32 +79,31 @@ Deno.serve(async (req) => {
 
     if (body.mode === "keyframe") {
       const styleHint = body.style ?? "clean black and white line art, minimal hatching, white background";
-      const fullPrompt = `${body.prompt}. Style: ${styleHint}. Single illustration, no text.`;
-      const messages: any[] = [{
-        role: "user",
-        content: body.referenceDataUrl
-          ? [
-              { type: "text", text: fullPrompt + " Match the character in the reference image." },
-              { type: "image_url", image_url: { url: body.referenceDataUrl } },
-            ]
-          : fullPrompt,
-      }];
+      const refHint = body.referenceDataUrl
+        ? " Maintain visual consistency with a previously established character design."
+        : "";
+      const fullPrompt = `${body.prompt}. Style: ${styleHint}.${refHint} Single illustration, no text.`;
 
-      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const resp = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
-          messages,
-          modalities: ["image", "text"],
+          model: "gpt-image-1",
+          prompt: fullPrompt,
+          size: "1024x1024",
+          n: 1,
         }),
       });
 
       if (!resp.ok) return passThrough(resp);
       const data = await resp.json();
-      const imgUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-      if (!imgUrl) return json({ error: "No image returned" }, 502);
-      return json({ imageDataUrl: imgUrl });
+      const b64 = data.data?.[0]?.b64_json;
+      const url = data.data?.[0]?.url;
+      let imageDataUrl: string | undefined;
+      if (b64) imageDataUrl = `data:image/png;base64,${b64}`;
+      else if (url) imageDataUrl = url;
+      if (!imageDataUrl) return json({ error: "No image returned" }, 502);
+      return json({ imageDataUrl });
     }
 
     return json({ error: "Unknown mode" }, 400);
@@ -114,44 +113,6 @@ Deno.serve(async (req) => {
   }
 });
 
-function handleMockMode(body: Body) {
-  if (body.mode === "storyboard") {
-    const count = Math.max(2, Math.min(12, body.count ?? 6));
-    const beats = generateMockBeats(body.prompt, count);
-    return json({ beats });
-  }
-  if (body.mode === "keyframe") {
-    return json({
-      error: "Keyframe generation requires LOVABLE_API_KEY configuration. Please add your API key to enable AI image generation.",
-    }, 503);
-  }
-  return json({ error: "Unknown mode" }, 400);
-}
-
-function generateMockBeats(prompt: string, count: number) {
-  const keywords = prompt.toLowerCase().match(/\b\w+\b/g) || [];
-  const beats = [];
-
-  const actions = [
-    "Character enters the scene",
-    "Movement and interaction begins",
-    "Building tension or action",
-    "Climactic moment",
-    "Resolution or transition",
-    "Final pose or exit",
-  ];
-
-  for (let i = 0; i < count; i++) {
-    const action = actions[i % actions.length];
-    beats.push({
-      label: `Beat ${i + 1}`,
-      description: `${action}. ${i === 0 ? "Establishing shot" : i === count - 1 ? "Final frame" : "Mid-action"}. Focus on ${keywords[i % keywords.length] || "subject"}.`,
-    });
-  }
-
-  return beats;
-}
-
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -160,9 +121,12 @@ function json(data: unknown, status = 200) {
 }
 
 async function passThrough(resp: Response) {
-  if (resp.status === 429) return json({ error: "AI is rate-limited. Please wait a moment." }, 429);
-  if (resp.status === 402) return json({ error: "AI credits exhausted. Add credits in Workspace settings." }, 402);
   const t = await resp.text();
-  console.error("AI gateway error", resp.status, t);
-  return json({ error: "AI gateway error" }, 500);
+  console.error("OpenAI error", resp.status, t);
+  if (resp.status === 429) return json({ error: "OpenAI rate limit hit. Please wait and retry." }, 429);
+  if (resp.status === 401) return json({ error: "Invalid OPENAI_API_KEY." }, 401);
+  if (resp.status === 402 || resp.status === 403) {
+    return json({ error: "OpenAI billing issue. Check your account credits/limits." }, 402);
+  }
+  return json({ error: `OpenAI error: ${t.slice(0, 300)}` }, 500);
 }
