@@ -19,12 +19,15 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
-
     const body = (await req.json()) as Body;
     if (!body?.prompt || !body?.mode) {
       return json({ error: "prompt and mode are required" }, 400);
+    }
+
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!apiKey) {
+      console.warn("LOVABLE_API_KEY not configured, returning mock data");
+      return handleMockMode(body);
     }
 
     if (body.mode === "storyboard") {
@@ -110,6 +113,44 @@ Deno.serve(async (req) => {
     return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500);
   }
 });
+
+function handleMockMode(body: Body) {
+  if (body.mode === "storyboard") {
+    const count = Math.max(2, Math.min(12, body.count ?? 6));
+    const beats = generateMockBeats(body.prompt, count);
+    return json({ beats });
+  }
+  if (body.mode === "keyframe") {
+    return json({
+      error: "Keyframe generation requires LOVABLE_API_KEY configuration. Please add your API key to enable AI image generation.",
+    }, 503);
+  }
+  return json({ error: "Unknown mode" }, 400);
+}
+
+function generateMockBeats(prompt: string, count: number) {
+  const keywords = prompt.toLowerCase().match(/\b\w+\b/g) || [];
+  const beats = [];
+
+  const actions = [
+    "Character enters the scene",
+    "Movement and interaction begins",
+    "Building tension or action",
+    "Climactic moment",
+    "Resolution or transition",
+    "Final pose or exit",
+  ];
+
+  for (let i = 0; i < count; i++) {
+    const action = actions[i % actions.length];
+    beats.push({
+      label: `Beat ${i + 1}`,
+      description: `${action}. ${i === 0 ? "Establishing shot" : i === count - 1 ? "Final frame" : "Mid-action"}. Focus on ${keywords[i % keywords.length] || "subject"}.`,
+    });
+  }
+
+  return beats;
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
