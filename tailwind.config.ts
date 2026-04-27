@@ -83,9 +83,21 @@ export default {
           "0%": { opacity: "0", transform: "translateY(6px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
         "scale-in": {
           "0%": { opacity: "0", transform: "scale(0.96)" },
           "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "slide-in-right": {
+          "0%": { opacity: "0", transform: "translateX(8px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        "shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
         },
         "ink-draw": {
           "0%": { strokeDashoffset: "1000" },
@@ -93,11 +105,17 @@ export default {
         },
       },
       animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.4s ease-out",
-        "scale-in": "scale-in 0.25s ease-out",
+        "accordion-down": "accordion-down 0.24s cubic-bezier(0.32, 0.72, 0, 1)",
+        "accordion-up": "accordion-up 0.24s cubic-bezier(0.32, 0.72, 0, 1)",
+        "fade-in": "fade-in 0.35s cubic-bezier(0.22, 1, 0.36, 1)",
+        "fade-in-up": "fade-in-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "scale-in": "scale-in 0.22s cubic-bezier(0.22, 1, 0.36, 1)",
+        "slide-in-right": "slide-in-right 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
+        "shimmer": "shimmer 2.4s linear infinite",
         "ink-draw": "ink-draw 1.6s ease-out forwards",
+      },
+      transitionTimingFunction: {
+        "smooth": "cubic-bezier(0.22, 1, 0.36, 1)",
       },
     },
   },
