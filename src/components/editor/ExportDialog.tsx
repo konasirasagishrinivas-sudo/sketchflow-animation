@@ -136,8 +136,10 @@ export function ExportDialog({ open, onOpenChange, project, frames }: Props) {
                 return (
                   <label
                     key={f}
-                    className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer transition-colors ${
-                      checked ? "border-accent bg-accent/5" : "border-border hover:bg-paper-shade"
+                    className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer transition-all duration-200 ease-smooth ${
+                      checked
+                        ? "border-accent bg-accent/5 shadow-[0_0_0_1px_hsl(var(--accent)/0.4)]"
+                        : "border-border hover:bg-paper-shade hover:-translate-y-0.5"
                     } ${busy ? "opacity-60 pointer-events-none" : ""}`}
                   >
                     <Checkbox
@@ -160,44 +162,47 @@ export function ExportDialog({ open, onOpenChange, project, frames }: Props) {
           </div>
 
           {busy && (
-            <div className="space-y-2">
+            <div className="space-y-2 animate-fade-in">
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-ink-soft">
                   <Loader2 className="size-4 animate-spin" /> {progress.label || "Rendering…"}
                 </span>
                 <span className="font-mono text-ink-soft">{progress.done}/{progress.total}</span>
               </div>
-              <Progress value={pct} />
+              <div className="shimmer-overlay rounded-full">
+                <Progress value={pct} className="transition-all duration-300 ease-smooth" />
+              </div>
             </div>
           )}
 
           {results.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-2 animate-fade-in">
               <div className="flex items-center justify-between">
                 <Label>{results.length} file{results.length === 1 ? "" : "s"} ready</Label>
                 {results.length > 1 && (
                   <button
                     onClick={handleDownloadAll}
-                    className="text-xs text-accent hover:underline"
+                    className="text-xs text-accent story-link"
                   >
                     Download all
                   </button>
                 )}
               </div>
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {results.map((r) => (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1 scrollbar-thin">
+                {results.map((r, i) => (
                   <div
                     key={r.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, r)}
                     title="Drag this file to your desktop or any folder"
-                    className="group flex items-center gap-3 rounded-md border-2 border-dashed border-accent/60 bg-accent/5 p-3 cursor-grab active:cursor-grabbing hover:bg-accent/10 transition-colors"
+                    style={{ animationDelay: `${i * 60}ms` }}
+                    className="group flex items-center gap-3 rounded-md border-2 border-dashed border-accent/60 bg-accent/5 p-3 cursor-grab active:cursor-grabbing hover:bg-accent/10 hover:border-accent transition-all duration-200 ease-smooth animate-fade-in-up active:scale-[0.98] active:-rotate-1"
                   >
-                    <GripVertical className="size-5 text-ink-soft shrink-0" />
+                    <GripVertical className="size-5 text-ink-soft shrink-0 transition-transform duration-200 ease-smooth group-hover:translate-x-0.5" />
                     {r.format === "gif" ? (
-                      <FileImage className="size-7 text-accent shrink-0" />
+                      <FileImage className="size-7 text-accent shrink-0 transition-transform duration-300 ease-smooth group-hover:scale-110" />
                     ) : (
-                      <FileVideo className="size-7 text-accent shrink-0" />
+                      <FileVideo className="size-7 text-accent shrink-0 transition-transform duration-300 ease-smooth group-hover:scale-110" />
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">{r.filename}</div>
@@ -205,7 +210,7 @@ export function ExportDialog({ open, onOpenChange, project, frames }: Props) {
                     </div>
                     <button
                       onClick={() => handleDownload(r)}
-                      className="p-1.5 rounded hover:bg-accent/20 text-ink-soft hover:text-accent transition-colors"
+                      className="p-1.5 rounded-md hover:bg-accent/20 text-ink-soft hover:text-accent transition-all duration-200 ease-smooth hover:scale-110"
                       title="Download"
                     >
                       <Download className="size-4" />
