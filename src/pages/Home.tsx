@@ -119,8 +119,12 @@ export default function Home() {
             { icon: Film, title: "Auto-traced frames", body: "Sobel edge detection on every frame, three line styles." },
             { icon: Clapperboard, title: "Motion Blueprint", body: "Plan actor paths, camera moves and beats spatially." },
             { icon: Pencil, title: "Draw on top", body: "Pen, eraser, onion skin. Export as MP4 or GIF." },
-          ].map((f) => (
-            <Card key={f.title} className="p-5 paper-shadow border-border/70">
+          ].map((f, i) => (
+            <Card
+              key={f.title}
+              style={{ animationDelay: `${i * 80}ms` }}
+              className="p-5 paper-shadow border-border/70 hover-lift animate-fade-in-up"
+            >
               <f.icon className="size-5 text-accent mb-3" />
               <h3 className="font-display text-lg">{f.title}</h3>
               <p className="text-sm text-ink-soft mt-1">{f.body}</p>
@@ -137,25 +141,33 @@ export default function Home() {
         </div>
 
         {projects.length === 0 ? (
-          <Card className="p-10 text-center border-dashed">
+          <Card className="p-10 text-center border-dashed animate-fade-in">
             <p className="text-ink-soft">No projects yet. Import a video or start blank.</p>
           </Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((p) => (
-              <Card key={p.id} className="group p-0 overflow-hidden paper-shadow border-border/70">
+            {projects.map((p, i) => (
+              <Card
+                key={p.id}
+                style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
+                className="group p-0 overflow-hidden paper-shadow border-border/70 hover-lift animate-fade-in-up"
+              >
                 <Link to={`/editor/${p.id}`} className="block">
                   <div className="aspect-video bg-paper-shade border-b border-border/60 flex items-center justify-center overflow-hidden">
                     {p.thumbDataUrl ? (
-                      <img src={p.thumbDataUrl} alt="" className="w-full h-full object-cover" />
+                      <img
+                        src={p.thumbDataUrl}
+                        alt=""
+                        className="w-full h-full object-cover transition-transform duration-500 ease-smooth group-hover:scale-105"
+                      />
                     ) : (
-                      <Film className="size-10 text-ink-soft/40" />
+                      <Film className="size-10 text-ink-soft/40 transition-transform duration-300 ease-smooth group-hover:scale-110" />
                     )}
                   </div>
                 </Link>
                 <div className="p-4 flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <Link to={`/editor/${p.id}`} className="font-medium block truncate hover:underline">
+                    <Link to={`/editor/${p.id}`} className="font-medium block truncate story-link">
                       {p.name}
                     </Link>
                     <p className="text-xs text-ink-soft mt-1">
@@ -167,7 +179,7 @@ export default function Home() {
                     size="icon"
                     onClick={() => remove(p.id)}
                     aria-label="Delete project"
-                    className="text-ink-soft hover:text-destructive"
+                    className="text-ink-soft hover:text-destructive opacity-0 group-hover:opacity-100 transition-all duration-200 ease-smooth"
                   >
                     <Trash2 className="size-4" />
                   </Button>
