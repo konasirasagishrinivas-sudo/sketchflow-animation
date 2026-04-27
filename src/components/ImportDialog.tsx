@@ -109,9 +109,9 @@ export function ImportDialog({ open, onOpenChange, onCreated }: Props) {
           {/* File picker */}
           <div className="space-y-2">
             <Label>Video file</Label>
-            <label className="flex items-center justify-center gap-2 rounded-md border border-dashed border-border bg-paper-shade/40 p-6 cursor-pointer hover:bg-paper-shade transition-colors">
-              <Film className="size-5 text-ink-soft" />
-              <span className="text-sm text-ink-soft">
+            <label className="group flex items-center justify-center gap-2 rounded-md border border-dashed border-border bg-paper-shade/40 p-6 cursor-pointer transition-all duration-200 ease-smooth hover:bg-paper-shade hover:border-accent/60 hover:-translate-y-0.5">
+              <Film className="size-5 text-ink-soft transition-all duration-300 ease-smooth group-hover:text-accent group-hover:scale-110" />
+              <span className="text-sm text-ink-soft transition-colors duration-200 group-hover:text-foreground">
                 {file ? file.name : "Click to choose a video file"}
               </span>
               <input
@@ -142,7 +142,7 @@ export function ImportDialog({ open, onOpenChange, onCreated }: Props) {
                 value={fps}
                 onChange={(e) => setFps(Number(e.target.value))}
                 disabled={busy}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm transition-all duration-200 ease-smooth hover:border-accent/50"
               >
                 <option value={6}>6 fps · choppy</option>
                 <option value={8}>8 fps · animation</option>
@@ -164,7 +164,7 @@ export function ImportDialog({ open, onOpenChange, onCreated }: Props) {
               {(["thin", "thick", "sketchy"] as const).map((s) => (
                 <label
                   key={s}
-                  className="flex items-center gap-2 rounded-md border border-border p-3 cursor-pointer hover:bg-paper-shade has-[:checked]:border-accent has-[:checked]:bg-accent/5"
+                  className="flex items-center gap-2 rounded-md border border-border p-3 cursor-pointer transition-all duration-200 ease-smooth hover:bg-paper-shade hover:-translate-y-0.5 has-[:checked]:border-accent has-[:checked]:bg-accent/5 has-[:checked]:shadow-[0_0_0_1px_hsl(var(--accent)/0.4)]"
                 >
                   <RadioGroupItem value={s} id={`style-${s}`} />
                   <span className="text-sm capitalize">{s}</span>
@@ -174,7 +174,7 @@ export function ImportDialog({ open, onOpenChange, onCreated }: Props) {
           </div>
 
           {busy && (
-            <div className="space-y-2">
+            <div className="space-y-2 animate-fade-in">
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-ink-soft">
                   <Loader2 className="size-4 animate-spin" /> Tracing frames…
@@ -183,7 +183,9 @@ export function ImportDialog({ open, onOpenChange, onCreated }: Props) {
                   {progress.done}/{progress.total}
                 </span>
               </div>
-              <Progress value={pct} />
+              <div className="shimmer-overlay rounded-full">
+                <Progress value={pct} className="transition-all duration-300 ease-smooth" />
+              </div>
             </div>
           )}
         </div>

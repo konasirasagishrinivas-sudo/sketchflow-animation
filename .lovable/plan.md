@@ -1,24 +1,49 @@
-## Switch AI Direction to OpenAI
+## Goal
+Make the app feel cleaner and smoother — softer easing, subtle entrance animations, and refined hover/active states — without changing any functionality or the existing ink-on-paper design language.
 
-Replace the Lovable AI gateway calls in the `ai-direction` edge function with direct OpenAI API calls using your own `OPENAI_API_KEY`.
+## Changes
 
-### What changes
+### 1. Animation system upgrade — `tailwind.config.ts`
+Add a small set of premium-feel keyframes and easings:
+- `fade-in` / `fade-in-up` — switch to `cubic-bezier(0.22, 1, 0.36, 1)` (Apple-style ease-out) and slightly slower for smoothness.
+- `scale-in` — same smooth easing, used for dialog content.
+- `slide-in-right` — for list items appearing.
+- `shimmer` — for skeleton/loading bars.
+- New utility ease: `ease-smooth` so components can opt in.
 
-**1. Add `OPENAI_API_KEY` secret**
-You'll be prompted to paste your OpenAI API key (from https://platform.openai.com/api-keys). It's stored securely as a backend secret — never exposed to the browser.
+### 2. Global polish — `src/index.css`
+- Add `scroll-behavior: smooth` on `html`.
+- Smooth default transition for interactive elements (`button, a, [role="button"]`) with the new easing — duration 200ms.
+- Improve focus ring (slightly softer, animated).
+- Add `.glass-card` utility (backdrop-blur + paper tint) for elevated surfaces.
+- Add `.hover-lift` utility (translateY(-2px) + shadow) for cards.
+- Refine custom scrollbar (rounded thumb, hover color change).
 
-**2. Update `supabase/functions/ai-direction/index.ts`**
-- **Storyboard mode** (text → beats): call `https://api.openai.com/v1/chat/completions` with `gpt-4o-mini` using OpenAI tool-calling (same JSON schema as today, so the frontend keeps working unchanged).
-- **Keyframe mode** (text → image): call `https://api.openai.com/v1/images/generations` with `gpt-image-1`, return the image as a base64 data URL so `onAddImageFrame` keeps working.
-  - Note: OpenAI image generation does not natively accept a character reference image the way Gemini does. The reference image will be described in the prompt instead (best-effort consistency). If you need true reference-image conditioning, that requires a different provider — let me know.
-- Keep CORS headers, error handling, and the 429/402 messages.
+### 3. ExportDialog — `src/components/editor/ExportDialog.tsx`
+- Format checkboxes: add `transition-all duration-200 ease-smooth`, subtle hover lift, animated check state.
+- Progress section: wrap in `animate-fade-in`; add shimmer overlay on the progress bar while rendering.
+- Result cards: each appears with `animate-fade-in-up` and a small staggered delay (`style={{ animationDelay: ... }}`); add `hover-lift` and smoother grab cursor feedback.
+- "Download all" link gets `story-link`-style underline animation.
+- Drag state: when `dragging`, card scales to `0.98` and rotates `-1deg` for tactile feel.
 
-**3. No frontend changes**
-`AiDirection.tsx` already calls the edge function via `supabase.functions.invoke("ai-direction", ...)` and reads `beats` / `imageDataUrl` from the response. The contract stays identical.
+### 4. ImportDialog — `src/components/ImportDialog.tsx`
+- File drop area: animated dashed border on hover, scale-in icon.
+- Progress block: same fade-in + shimmer treatment as ExportDialog for consistency.
+- Style radio cards: smoother selected-state transition.
 
-### Cost note
-OpenAI billing is on your own OpenAI account, not Lovable credits. `gpt-image-1` images cost ~$0.04–0.17 each depending on size; `gpt-4o-mini` storyboard calls are fractions of a cent.
+### 5. Editor shell — `src/pages/Editor.tsx`
+- Apply `animate-fade-in` to top-level panels on mount.
+- Toolbar buttons: unify hover (subtle bg shift, no jump).
 
-### Files touched
-- `supabase/functions/ai-direction/index.ts` (rewrite)
-- New secret: `OPENAI_API_KEY`
+### 6. Home / nav — `src/pages/Home.tsx`, `src/components/NavLink.tsx`
+- Project cards: `hover-lift` + smoother shadow transition.
+- NavLinks: use the `story-link` underline animation.
+
+## Out of scope
+- No color/theme changes (ink-on-paper preserved).
+- No layout restructuring.
+- No new dependencies.
+- No backend or AI logic touched.
+
+## Result
+Snappier, more refined feel — buttons, cards, dialogs, and lists glide instead of pop. Same UI, noticeably more polished.
