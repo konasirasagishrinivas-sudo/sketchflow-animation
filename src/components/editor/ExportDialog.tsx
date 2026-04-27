@@ -5,6 +5,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Download, GripVertical, FileVideo, FileImage } from "lucide-react";
 import { exportGif, exportWebm, downloadBlob } from "@/lib/exporter";
 import type { Frame, Project } from "@/lib/types";
@@ -17,23 +18,38 @@ interface Props {
   frames: Frame[];
 }
 
+type Format = "gif" | "webm";
+
 interface Result {
+  id: string;
+  format: Format;
   blob: Blob;
   filename: string;
   mime: string;
   url: string;
 }
 
-export function ExportDialog({ open, onOpenChange, project, frames }: Props) {
-  const [format, setFormat] = useState<"gif" | "webm">("gif");
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
-  const [result, setResult] = useState<Result | null>(null);
-  const dragRef = useRef<HTMLDivElement>(null);
+const FORMAT_META: Record<Format, { label: string; mime: string; ext: string; desc: string }> = {
+  gif: { label: "GIF", mime: "image/gif", ext: "gif", desc: "Animated GIF, easy to share" },
+  webm: { label: "WebM", mime: "video/webm", ext: "webm", desc: "Video (MP4-style), smaller & smoother" },
+};
 
-  const cleanupResult = () => {
-    if (result) URL.revokeObjectURL(result.url);
-    setResult(null);
+export function ExportDialog({ open, onOpenChange, project, frames }: Props) {
+  const [selected, setSelected] = useState<Record<Format, boolean>>({ gif: true, webm: false });
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0, label: "" });
+  const [results, setResults] = useState<Result[]>([]);
+  const idCounter = useRef(0);
+
+  const cleanupResults = () => {
+    setResults((prev) => {
+      prev.forEach((r) => URL.revokeObjectURL(r.url));
+      return [];
+    });
+  };
+
+  const toggle = (f: Format) => {
+    setSelected((s) => ({ ...s, [f]: !s[f] }));
   };
 
   const run = async () => {
@@ -41,54 +57,64 @@ export function ExportDialog({ open, onOpenChange, project, frames }: Props) {
       toast.error("No frames to export");
       return;
     }
-    cleanupResult();
+    const formats = (Object.keys(selected) as Format[]).filter((f) => selected[f]);
+    if (formats.length === 0) {
+      toast.error("Pick at least one format");
+      return;
+    }
+    cleanupResults();
     setBusy(true);
-    setProgress({ done: 0, total: frames.length });
+    const newResults: Result[] = [];
     try {
-      const opts = {
-        project,
-        frames,
-        onProgress: (done: number, total: number) => setProgress({ done, total }),
-      };
-      const blob = format === "gif" ? await exportGif(opts) : await exportWebm(opts);
-      const ext = format === "gif" ? "gif" : "webm";
-      const mime = format === "gif" ? "image/gif" : "video/webm";
-      const filename = `${project.name.replace(/\s+/g, "_")}.${ext}`;
-      const url = URL.createObjectURL(blob);
-      setResult({ blob, filename, mime, url });
-      toast.success(`Ready — drag the file out or click download`);
+      for (let i = 0; i < formats.length; i++) {
+        const fmt = formats[i];
+        const meta = FORMAT_META[fmt];
+        setProgress({ done: 0, total: frames.length, label: `Rendering ${meta.label} (${i + 1}/${formats.length})` });
+        const opts = {
+          project,
+          frames,
+          onProgress: (done: number, total: number) =>
+            setProgress({ done, total, label: `Rendering ${meta.label} (${i + 1}/${formats.length})` }),
+        };
+        const blob = fmt === "gif" ? await exportGif(opts) : await exportWebm(opts);
+        const id = `r${++idCounter.current}`;
+        const filename = `${project.name.replace(/\s+/g, "_")}.${meta.ext}`;
+        const url = URL.createObjectURL(blob);
+        newResults.push({ id, format: fmt, blob, filename, mime: meta.mime, url });
+        // Show progressively as each finishes
+        setResults([...newResults]);
+      }
+      toast.success(`Exported ${newResults.length} file${newResults.length === 1 ? "" : "s"} — drag them out or download`);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "Export failed");
     } finally {
       setBusy(false);
+      setProgress({ done: 0, total: 0, label: "" });
     }
   };
 
-  const handleDownload = () => {
-    if (!result) return;
-    downloadBlob(result.blob, result.filename);
+  const handleDownload = (r: Result) => downloadBlob(r.blob, r.filename);
+
+  const handleDownloadAll = () => {
+    results.forEach((r, i) => setTimeout(() => downloadBlob(r.blob, r.filename), i * 200));
   };
 
-  const handleDragStart = (e: React.DragEvent) => {
-    if (!result) return;
-    // DownloadURL format: "mime:filename:url" — lets the OS receive a real file on drop
-    e.dataTransfer.setData(
-      "DownloadURL",
-      `${result.mime}:${result.filename}:${result.url}`
-    );
-    e.dataTransfer.setData("text/uri-list", result.url);
-    e.dataTransfer.setData("text/plain", result.filename);
+  const handleDragStart = (e: React.DragEvent, r: Result) => {
+    e.dataTransfer.setData("DownloadURL", `${r.mime}:${r.filename}:${r.url}`);
+    e.dataTransfer.setData("text/uri-list", r.url);
+    e.dataTransfer.setData("text/plain", r.filename);
     e.dataTransfer.effectAllowed = "copy";
   };
 
   const handleOpenChange = (v: boolean) => {
     if (busy) return;
-    if (!v) cleanupResult();
+    if (!v) cleanupResults();
     onOpenChange(v);
   };
 
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+  const selectedCount = (Object.keys(selected) as Format[]).filter((f) => selected[f]).length;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -102,26 +128,34 @@ export function ExportDialog({ open, onOpenChange, project, frames }: Props) {
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Format</Label>
+            <Label>Formats to export</Label>
             <div className="grid grid-cols-2 gap-2">
-              {(["gif", "webm"] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => { setFormat(f); cleanupResult(); }}
-                  disabled={busy}
-                  className={`rounded-md border p-3 text-left transition-colors ${
-                    format === f ? "border-accent bg-accent/5" : "border-border hover:bg-paper-shade"
-                  }`}
-                >
-                  <div className="font-medium uppercase text-sm">{f}</div>
-                  <div className="text-xs text-ink-soft mt-0.5">
-                    {f === "gif" ? "Animated GIF, easy to share" : "Video (MP4-style), smaller & smoother"}
-                  </div>
-                </button>
-              ))}
+              {(Object.keys(FORMAT_META) as Format[]).map((f) => {
+                const meta = FORMAT_META[f];
+                const checked = selected[f];
+                return (
+                  <label
+                    key={f}
+                    className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer transition-colors ${
+                      checked ? "border-accent bg-accent/5" : "border-border hover:bg-paper-shade"
+                    } ${busy ? "opacity-60 pointer-events-none" : ""}`}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggle(f)}
+                      disabled={busy}
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <div className="font-medium uppercase text-sm">{meta.label}</div>
+                      <div className="text-xs text-ink-soft mt-0.5">{meta.desc}</div>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
             <p className="text-xs text-ink-soft">
-              MP4 is exported as WebM (H.264-equivalent) — playable in browsers and most editors.
+              Tick multiple to render them in one batch — you'll get a draggable card per file.
             </p>
           </div>
 
@@ -129,7 +163,7 @@ export function ExportDialog({ open, onOpenChange, project, frames }: Props) {
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-ink-soft">
-                  <Loader2 className="size-4 animate-spin" /> Rendering…
+                  <Loader2 className="size-4 animate-spin" /> {progress.label || "Rendering…"}
                 </span>
                 <span className="font-mono text-ink-soft">{progress.done}/{progress.total}</span>
               </div>
@@ -137,31 +171,47 @@ export function ExportDialog({ open, onOpenChange, project, frames }: Props) {
             </div>
           )}
 
-          {result && !busy && (
+          {results.length > 0 && (
             <div className="space-y-2">
-              <Label>Your file is ready</Label>
-              <div
-                ref={dragRef}
-                draggable
-                onDragStart={handleDragStart}
-                title="Drag this file to your desktop or any folder"
-                className="group flex items-center gap-3 rounded-md border-2 border-dashed border-accent/60 bg-accent/5 p-4 cursor-grab active:cursor-grabbing hover:bg-accent/10 transition-colors"
-              >
-                <GripVertical className="size-5 text-ink-soft shrink-0" />
-                {format === "gif" ? (
-                  <FileImage className="size-8 text-accent shrink-0" />
-                ) : (
-                  <FileVideo className="size-8 text-accent shrink-0" />
+              <div className="flex items-center justify-between">
+                <Label>{results.length} file{results.length === 1 ? "" : "s"} ready</Label>
+                {results.length > 1 && (
+                  <button
+                    onClick={handleDownloadAll}
+                    className="text-xs text-accent hover:underline"
+                  >
+                    Download all
+                  </button>
                 )}
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium truncate">{result.filename}</div>
-                  <div className="text-xs text-ink-soft">
-                    Drag this out to your desktop, or click Download
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {results.map((r) => (
+                  <div
+                    key={r.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, r)}
+                    title="Drag this file to your desktop or any folder"
+                    className="group flex items-center gap-3 rounded-md border-2 border-dashed border-accent/60 bg-accent/5 p-3 cursor-grab active:cursor-grabbing hover:bg-accent/10 transition-colors"
+                  >
+                    <GripVertical className="size-5 text-ink-soft shrink-0" />
+                    {r.format === "gif" ? (
+                      <FileImage className="size-7 text-accent shrink-0" />
+                    ) : (
+                      <FileVideo className="size-7 text-accent shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">{r.filename}</div>
+                      <div className="text-xs text-ink-soft">Drag out, or click the icon to download</div>
+                    </div>
+                    <button
+                      onClick={() => handleDownload(r)}
+                      className="p-1.5 rounded hover:bg-accent/20 text-ink-soft hover:text-accent transition-colors"
+                      title="Download"
+                    >
+                      <Download className="size-4" />
+                    </button>
                   </div>
-                </div>
-                <span className="text-xs uppercase tracking-wide text-ink-soft opacity-0 group-hover:opacity-100 transition-opacity">
-                  Drag me
-                </span>
+                ))}
               </div>
             </div>
           )}
@@ -171,17 +221,14 @@ export function ExportDialog({ open, onOpenChange, project, frames }: Props) {
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={busy}>
             Close
           </Button>
-          {result ? (
-            <Button onClick={handleDownload} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Download className="size-4" />
-              Download
-            </Button>
-          ) : (
-            <Button onClick={run} disabled={busy} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              {busy ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-              Export
-            </Button>
-          )}
+          <Button
+            onClick={run}
+            disabled={busy || selectedCount === 0}
+            className="bg-accent text-accent-foreground hover:bg-accent/90"
+          >
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+            {results.length > 0 ? "Re-export" : `Export ${selectedCount || ""}`.trim()}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
