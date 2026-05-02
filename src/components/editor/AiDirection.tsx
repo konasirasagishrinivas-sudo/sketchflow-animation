@@ -125,6 +125,21 @@ export function AiDirection({ project, onAddImageFrame }: Props) {
         </div>
       </div>
 
+      {(loadingStory || rawResponse) && (
+        <div className="space-y-2 pt-2 border-t border-border/60">
+          <p className="text-xs uppercase tracking-wider text-ink-soft">Response</p>
+          {loadingStory ? (
+            <div className="rounded-md border border-border p-3 bg-paper flex items-center gap-2 text-xs text-ink-soft">
+              <Loader2 className="size-3 animate-spin" /> Waiting for server response…
+            </div>
+          ) : (
+            <pre className="rounded-md border border-border p-2 bg-paper text-[11px] max-h-48 overflow-auto whitespace-pre-wrap break-words">
+{rawResponse}
+            </pre>
+          )}
+        </div>
+      )}
+
       {beats.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-border/60">
           <p className="text-xs uppercase tracking-wider text-ink-soft">Storyboard</p>
