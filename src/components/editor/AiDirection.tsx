@@ -22,17 +22,40 @@ export function AiDirection({ project, onAddImageFrame }: Props) {
   const [loadingStory, setLoadingStory] = useState(false);
   const [loadingFrame, setLoadingFrame] = useState<number | null>(null);
 
+  const [rawResponse, setRawResponse] = useState<string>("");
+
   const generateStoryboard = async () => {
     if (!prompt.trim()) return;
     setLoadingStory(true);
+    setRawResponse("");
     try {
-      const { data, error } = await supabase.functions.invoke("ai-direction", {
-        body: { mode: "storyboard", prompt, count },
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      setBeats((data as any).beats ?? []);
-      toast.success("Storyboard ready");
+      const res = await fetch(
+        "https://viewing-mid-governments-simulation.trycloudflare.com/webhook/storyboard-to-video",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scene: prompt, beats: 6 }),
+        }
+      );
+      const text = await res.text();
+      let data: any = null;
+      try { data = JSON.parse(text); } catch { /* keep as text */ }
+      if (!res.ok) throw new Error(`Request failed (${res.status}): ${text.slice(0, 200)}`);
+
+      setRawResponse(typeof data === "object" && data !== null ? JSON.stringify(data, null, 2) : text);
+
+      const maybeBeats = data?.beats ?? data?.storyboard ?? (Array.isArray(data) ? data : null);
+      if (Array.isArray(maybeBeats)) {
+        setBeats(
+          maybeBeats.map((b: any, i: number) => ({
+            label: b?.label ?? b?.title ?? `Beat ${i + 1}`,
+            description: b?.description ?? b?.text ?? (typeof b === "string" ? b : ""),
+          }))
+        );
+      } else {
+        setBeats([]);
+      }
+      toast.success("Response received");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to generate storyboard");
     } finally {
