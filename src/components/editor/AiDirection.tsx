@@ -30,7 +30,7 @@ export function AiDirection({ project, onAddImageFrame }: Props) {
     setRawResponse("");
     try {
       const res = await fetch(
-        "https://viewing-mid-governments-simulation.trycloudflare.com/webhook/storyboard-to-video",
+        "https://rebate-killing-knights-mounted.trycloudflare.com/webhook/storyboard-to-video",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
