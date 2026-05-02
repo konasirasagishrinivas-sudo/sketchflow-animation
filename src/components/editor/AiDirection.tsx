@@ -30,7 +30,7 @@ export function AiDirection({ project, onAddImageFrame }: Props) {
     setRawResponse("");
     try {
       const res = await fetch(
-        "https://rebate-killing-knights-mounted.trycloudflare.com/webhook/storyboard-to-video",
+        "https://flaccid-pantyhose-acetone.ngrok-free.dev/webhook/storyboard-to-video",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
